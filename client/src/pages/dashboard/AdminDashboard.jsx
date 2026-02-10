@@ -18,6 +18,7 @@ const AdminDashboard = () => {
     { title: "Monthly Sales", value: "₹2,45,000" },
     { title: "Total Orders", value: "184" },
     { title: "Active Distributors", value: "8" },
+    { title: "Active Sub-Distributors", value: "24" },
   ];
 
   const distributorSales = [
@@ -38,6 +39,8 @@ const AdminDashboard = () => {
   const handleCardClick = (title) => {
     if (title === "Active Distributors") {
       navigate("/manage-distributors");
+    } else if (title === "Active Sub-Distributors") {
+      navigate("/manage-sub-distributors");
     }
   };
 

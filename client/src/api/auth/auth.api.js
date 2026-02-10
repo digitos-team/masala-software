@@ -23,3 +23,9 @@ export const getDistributors = async () => {
   const response = await axiosInstance.get("/users/distributors");
   return response.data;
 };
+
+// GET SUB-DISTRIBUTORS (RETAILERS)
+export const getSubDistributors = async () => {
+  const response = await axiosInstance.get("/users/retailers");
+  return response.data;
+};

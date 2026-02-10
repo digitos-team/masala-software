@@ -2,7 +2,8 @@ import {
   RegisterUserService,
   LoginUserService,
   LogoutUserService,
-  GetDistributorsService
+  GetDistributorsService,
+  GetRetailersService
 } from "../services/user.services.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
@@ -57,9 +58,17 @@ const getDistributors = asyncHandler(async (req, res) => {
   );
 });
 
+const getRetailers = asyncHandler(async (req, res) => {
+  const retailers = await GetRetailersService();
+  return res.status(200).json(
+    new ApiResponse(200, retailers, "Retailers fetched successfully")
+  );
+});
+
 export {
   registerUser,
   loginUser,
   logoutUser,
-  getDistributors
+  getDistributors,
+  getRetailers
 }

@@ -58,9 +58,15 @@ const GetDistributorsService = async () => {
     return distributors;
 }
 
+const GetRetailersService = async () => {
+    const retailers = await User.find({ role: "retailer" }).select("-password").populate("parentDistributor", "name email");
+    return retailers;
+}
+
 export {
     RegisterUserService,
     LoginUserService,
     LogoutUserService,
-    GetDistributorsService
+    GetDistributorsService,
+    GetRetailersService
 }
