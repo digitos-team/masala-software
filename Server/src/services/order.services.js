@@ -123,9 +123,35 @@ const GetOrderByIdService = async (orderId, userRole, userId) => {
         throw new ApiError(404, "Order not found");
     }
 
-    // Role-based access: non-admin users can only see their own orders
-    if (userRole !== "admin" && order.orderBy.toString() !== userId.toString()) {
-        throw new ApiError(403, "You don't have permission to view this order");
+    // Role-based access: non-admin users can only see their own orders or orders assigned to them
+    if (userRole !== "admin") {
+        const isOwner = order.orderBy._id.toString() === userId.toString(); // ._id is needed because of populate? No, populate returns object. But if it's populated, check ._id or .toString() on object? 
+        // Wait, populate replaces the ID with the object. So order.orderBy is an object now.
+        // order.orderBy._id.toString() is safer.
+        // Let's check if populate is used. Yes: .populate("orderBy", "name email role")
+
+        const ownerId = order.orderBy?._id?.toString() || order.orderBy?.toString();
+        const distId = order.distributorId?._id?.toString() || order.distributorId?.toString();
+        const subDistId = order.subDistributorId?._id?.toString() || order.subDistributorId?.toString();
+
+        console.log("Debug Order Access:", {
+            orderId,
+            userId: userId.toString(),
+            ownerId,
+            distId,
+            subDistId,
+            userRole
+        });
+
+        const hasAccess =
+            ownerId === userId.toString() ||
+            distId === userId.toString() ||
+            subDistId === userId.toString();
+
+        if (!hasAccess) {
+            console.log("Access Denied for user:", userId.toString());
+            throw new ApiError(403, "You don't have permission to view this order");
+        }
     }
 
     return order;
@@ -134,11 +160,38 @@ const GetOrderByIdService = async (orderId, userRole, userId) => {
 /**
  * Update order by ID
  */
-const UpdateOrderService = async (orderId, updateData, userRole) => {
+/**
+ * Update order by ID
+ */
+const UpdateOrderService = async (orderId, updateData, userRole, userId) => {
     const order = await Order.findById(orderId);
 
     if (!order) {
         throw new ApiError(404, "Order not found");
+    }
+
+    // Role-based access control
+    // Role-based access control
+    if (userRole !== "admin") {
+        // Usage: const order = await Order.findById(orderId); -> No populate here usually, but let's be safe
+        const getIdString = (field) => {
+            if (!field) return null;
+            if (field._id) return field._id.toString();
+            return field.toString();
+        };
+
+        const ownerId = getIdString(order.orderBy);
+        const distId = getIdString(order.distributorId);
+        const subDistId = getIdString(order.subDistributorId);
+
+        const hasAccess =
+            ownerId === userId.toString() ||
+            distId === userId.toString() ||
+            subDistId === userId.toString();
+
+        if (!hasAccess) {
+            throw new ApiError(403, "You don't have permission to update this order");
+        }
     }
 
     // Prevent updating certain fields after order is confirmed

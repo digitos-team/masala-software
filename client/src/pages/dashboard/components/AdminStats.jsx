@@ -4,11 +4,11 @@ const AdminStats = ({ stats, onCardClick }) => {
       {stats.map((item) => (
         <div
           key={item.title}
-          onClick={() => onCardClick && onCardClick(item.title)}
+          onClick={() => item.isClickable && onCardClick && onCardClick(item.title)}
           className={`group relative overflow-hidden bg-white rounded-2xl sm:rounded-[2rem] border border-slate-100
                      p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)]
                      transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-95
-                     ${onCardClick ? "cursor-pointer" : ""}`}
+                     ${item.isClickable ? "cursor-pointer" : ""}`}
         >
           {/* Decorative bubble (desktop focus) */}
           <div

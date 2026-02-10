@@ -74,8 +74,9 @@ const getAllOrders = asyncHandler(async (req, res) => {
 const updateOrder = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const userRole = req.user.role;
+    const userId = req.user._id;
 
-    const order = await UpdateOrderService(id, req.body, userRole);
+    const order = await UpdateOrderService(id, req.body, userRole, userId);
 
     return res.status(200).json(
         new ApiResponse(200, order, "Order updated successfully")

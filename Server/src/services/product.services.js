@@ -60,11 +60,11 @@ const getPriceByRole = (pricing, userRole) => {
 // Create a new product
 
 const CreateProductService = async (productData, userId) => {
-    const { name, pricing, taxpercentage, stock, minStockAlert, unit, totalPrice } = productData;
+    const { name, pricing, taxpercentage, stock, minStockAlert, unit, quantity, totalPrice } = productData;
 
     // Validation
-    if (!name || !stock || !unit || !totalPrice) {
-        throw new ApiError(400, "Name, stock, unit, and totalPrice are required");
+    if (!name || !stock || !unit || !quantity || !totalPrice) {
+        throw new ApiError(400, "Name, stock, unit, quantity, and totalPrice are required");
     }
 
     // Check if product with same name already exists
@@ -81,6 +81,7 @@ const CreateProductService = async (productData, userId) => {
         stock,
         minStockAlert: minStockAlert || 10,
         unit,
+        quantity,
         totalPrice,
         createdBy: userId,
         updatedBy: userId

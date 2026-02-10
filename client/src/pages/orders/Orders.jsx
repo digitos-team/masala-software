@@ -1,53 +1,35 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getAllOrders } from "../../api/admin/order.api";
+import { toast } from "react-toastify";
 
 const Orders = () => {
   // 🔐 user + role
   const user = JSON.parse(localStorage.getItem("user")) || {};
-  const role = user.role || "distributor"; // testing fallback
+  const role = user.role || "admin";
 
-  // ✅ Orders state (with owner info)
-  const [orders, setOrders] = useState([
-    {
-      id: "ORD201",
-      customer: "Distributor A",
-      owner: "sub-distributor",
-      date: "03 Feb 2026",
-      amount: "₹1,200",
-      status: "Pending",
-    },
-    {
-      id: "ORD202",
-      customer: "Distributor B",
-      owner: "distributor",
-      date: "02 Feb 2026",
-      amount: "₹3,400",
-      status: "Forwarded",
-    },
-    {
-      id: "ORD203",
-      customer: "Distributor C",
-      owner: "distributor",
-      date: "01 Feb 2026",
-      amount: "₹950",
-      status: "Approved",
-    },
-  ]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🔥 ROLE-WISE FILTERING (CORE LOGIC)
-  const filteredOrders = orders.filter((order) => {
-    if (role === "admin") return true;
-
-    if (role === "distributor") {
-      return order.owner === "distributor" || order.owner === "sub-distributor";
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllOrders();
+      // Adjust based on the actual backend response (might be { orders, pagination } or { data: { orders } })
+      // Based on order.controllers.js, getAllOrders returns new ApiResponse(200, result, "...")
+      // and result is likely { orders, pagination }
+      setOrders(data?.data?.orders || data?.data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load orders");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (role === "sub-distributor") {
-      return order.owner === "sub-distributor";
-    }
-
-    return false;
-  });
+  useEffect(() => {
+    fetchOrders();
+  }, [role]);
 
   // 🎨 Status styles
   const getStatusClass = (status) => {
@@ -67,35 +49,8 @@ const Orders = () => {
     }
   };
 
-  // 🚀 Distributor → Forward
-  const handleForward = (orderId) => {
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, status: "Forwarded" } : order,
-      ),
-    );
-  };
-
-  // 🧑‍💼 Admin → Approve
-  const handleApprove = (orderId) => {
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, status: "Approved" } : order,
-      ),
-    );
-  };
-
-  // 🚚 Admin → Dispatch
-  const handleDispatch = (orderId) => {
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, status: "Dispatched" } : order,
-      ),
-    );
-  };
-
   return (
-    <div className="p-2">
+    <div className="p-2 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
@@ -103,14 +58,14 @@ const Orders = () => {
             Order Management
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Track and manage orders based on user role.
+            Track and manage orders based on your role.
           </p>
         </div>
 
         {role !== "admin" && (
           <Link
             to="/orders/create"
-            className="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-md"
+            className="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-md transition-all active:scale-95"
           >
             <span className="mr-2 text-lg">+</span> Create Order
           </Link>
@@ -119,101 +74,80 @@ const Orders = () => {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500">
-                  Order ID
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500">
-                  Customer
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500">
-                  Date
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500">
-                  Amount
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 text-right">
-                  Action
-                </th>
-              </tr>
-            </thead>
+        {loading ? (
+          <div className="p-12 text-center text-slate-400 font-medium">Loading orders...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Order ID
+                  </th>
 
-            <tbody className="divide-y divide-slate-100">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-semibold text-indigo-600">
-                    #{order.id}
-                  </td>
-                  <td className="px-6 py-4 text-slate-700">{order.customer}</td>
-                  <td className="px-6 py-4 text-slate-500 text-sm">
-                    {order.date}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-slate-900">
-                    {order.amount}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusClass(
-                        order.status,
-                      )}`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-
-                  {/* ACTIONS */}
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <Link
-                      to={`/orders/${order.id}`}
-                      className="text-indigo-600 font-semibold hover:bg-indigo-50 px-3 py-1.5 rounded-lg"
-                    >
-                      View
-                    </Link>
-
-                    {/* Distributor */}
-                    {role === "distributor" && order.status === "Pending" && (
-                      <button
-                        onClick={() => handleForward(order.id)}
-                        className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
-                      >
-                        Forward
-                      </button>
-                    )}
-
-                    {/* Admin */}
-                    {role === "admin" && order.status === "Forwarded" && (
-                      <button
-                        onClick={() => handleApprove(order.id)}
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700"
-                      >
-                        Approve
-                      </button>
-                    )}
-
-                    {role === "admin" && order.status === "Approved" && (
-                      <button
-                        onClick={() => handleDispatch(order.id)}
-                        className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700"
-                      >
-                        Dispatch
-                      </button>
-                    )}
-                  </td>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 text-right uppercase tracking-wider">
+                    Action
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
 
-        <div className="px-6 py-4 bg-slate-50 border-t text-center">
-          <span className="text-xs text-slate-400">
-            Showing {filteredOrders.length} orders
+              <tbody className="divide-y divide-slate-100">
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="p-12 text-center text-slate-400 italic">No orders found.</td>
+                  </tr>
+                ) : orders.map((order) => (
+                  <tr key={order._id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-black font-mono text-indigo-600 text-sm">
+                      #{order._id?.slice(-6).toUpperCase()}
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-500 text-sm">
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric'
+                      }) : "N/A"}
+                    </td>
+                    <td className="px-6 py-4 font-black text-slate-900">
+                      ₹{order.pricing?.grandTotal?.toLocaleString() || order.totalAmount?.toLocaleString() || 0}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusClass(
+                          order.status,
+                        )}`}
+                      >
+                        {order.status}
+                      </span>
+                    </td>
+
+                    {/* ACTIONS */}
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        to={`/orders/${order._id}`}
+                        className="text-indigo-600 font-bold hover:bg-indigo-50 px-4 py-2 rounded-lg transition-colors text-sm border border-transparent hover:border-indigo-100"
+                      >
+                        Details
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="px-6 py-4 bg-slate-50 border-t flex justify-between items-center">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {orders.length} Records Found
           </span>
         </div>
       </div>

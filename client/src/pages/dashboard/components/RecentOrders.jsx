@@ -5,13 +5,17 @@ const RecentOrders = ({ orders = [] }) => {
         return "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20";
       case "Pending":
         return "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20";
+      case "Approved":
+        return "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-600/20";
+      case "Dispatched":
+        return "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20";
       default:
         return "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300";
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 overflow-hidden">
+    <div className="bg-white rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 overflow-hidden h-full flex flex-col">
       {/* Header */}
       <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -32,15 +36,15 @@ const RecentOrders = ({ orders = [] }) => {
       </div>
 
       {/* TABLE VIEW (Tablet & Desktop) */}
-      <div className="hidden sm:block overflow-x-auto">
+      <div className="hidden sm:block overflow-x-auto flex-grow">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-slate-50/60">
+            <tr className="bg-slate-50/60 text-left">
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
                 Order ID
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
-                Distributor
+                Customer
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 text-center">
                 Status
@@ -54,17 +58,17 @@ const RecentOrders = ({ orders = [] }) => {
           <tbody className="divide-y divide-slate-100">
             {orders.map((order) => (
               <tr
-                key={order.id}
+                key={order._id}
                 className="group hover:bg-slate-50/60 transition-colors"
               >
                 <td className="px-6 py-4">
                   <span className="font-mono text-[11px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100">
-                    #{order.id}
+                    #{order._id?.slice(-6).toUpperCase()}
                   </span>
                 </td>
 
                 <td className="px-6 py-4 font-bold text-slate-700">
-                  {order.distributor}
+                  {order.orderBy?.name || order.user?.username || order.customer || "N/A"}
                 </td>
 
                 <td className="px-6 py-4 text-center">
@@ -80,7 +84,7 @@ const RecentOrders = ({ orders = [] }) => {
 
                 <td className="px-6 py-4 text-right">
                   <span className="text-sm font-black text-slate-900 tabular-nums bg-slate-100 px-3 py-1 rounded-lg">
-                    {order.amount}
+                    ₹{order.pricing?.grandTotal?.toLocaleString() || order.totalAmount || order.amount || 0}
                   </span>
                 </td>
               </tr>
@@ -90,12 +94,12 @@ const RecentOrders = ({ orders = [] }) => {
       </div>
 
       {/* MOBILE CARD VIEW */}
-      <div className="sm:hidden divide-y divide-slate-100">
+      <div className="sm:hidden divide-y divide-slate-100 overflow-y-auto flex-grow">
         {orders.map((order) => (
-          <div key={order.id} className="p-4 active:bg-slate-50 transition">
+          <div key={order._id} className="p-4 active:bg-slate-50 transition">
             <div className="flex justify-between items-center mb-3">
               <span className="font-mono text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md">
-                #{order.id}
+                #{order._id?.slice(-6).toUpperCase()}
               </span>
 
               <span
@@ -110,15 +114,15 @@ const RecentOrders = ({ orders = [] }) => {
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Distributor
+                  Customer
                 </p>
                 <p className="text-sm font-black text-slate-800">
-                  {order.distributor}
+                  {order.orderBy?.name || order.user?.username || order.customer || "N/A"}
                 </p>
               </div>
 
               <p className="text-sm font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">
-                {order.amount}
+                ₹{order.pricing?.grandTotal?.toLocaleString() || order.totalAmount || order.amount || 0}
               </p>
             </div>
           </div>
@@ -127,7 +131,7 @@ const RecentOrders = ({ orders = [] }) => {
 
       {/* EMPTY STATE */}
       {orders.length === 0 && (
-        <div className="px-6 py-12 text-center">
+        <div className="px-6 py-12 text-center flex-grow flex items-center justify-center">
           <p className="text-sm font-bold text-slate-400 italic">
             No recent orders found
           </p>

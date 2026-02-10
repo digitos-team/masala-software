@@ -370,11 +370,47 @@ const VerifyPaymentService = async (transactionId) => {
     };
 };
 
-//get payment statistics
-const GetPaymentStatsService = async () => {
-    const totalPayments = await Payment.countDocuments();
+//get payment statistics with filtering
+const GetPaymentStatsService = async (queryParams = {}, userRole = "admin", userId = null) => {
+    const { startDate, endDate, distributorId } = queryParams;
+
+    // Build base query
+    const query = {};
+
+    // Non-admin can only see their own stats
+    if (userRole !== "admin") {
+        const userOrders = await Order.find({
+            $or: [
+                { orderBy: userId },
+                { distributorId: userId },
+                { subDistributorId: userId }
+            ]
+        }).select("_id");
+        const orderIds = userOrders.map(order => order._id);
+        query.orderId = { $in: orderIds };
+    } else if (distributorId) {
+        // Admin filtering by specific distributor
+        const distOrders = await Order.find({
+            $or: [
+                { distributorId: distributorId },
+                { subDistributorId: distributorId }
+            ]
+        }).select("_id");
+        const orderIds = distOrders.map(order => order._id);
+        query.orderId = { $in: orderIds };
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+        query.paidAt = {};
+        if (startDate) query.paidAt.$gte = new Date(startDate);
+        if (endDate) query.paidAt.$lte = new Date(endDate);
+    }
+
+    const totalPayments = await Payment.countDocuments(query);
 
     const paymentsByStatus = await Payment.aggregate([
+        { $match: query },
         {
             $group: {
                 _id: "$Paymentstatus",
@@ -385,6 +421,7 @@ const GetPaymentStatsService = async () => {
     ]);
 
     const paymentsByMethod = await Payment.aggregate([
+        { $match: query },
         {
             $group: {
                 _id: "$method",
@@ -437,10 +474,32 @@ const GetRevenueByMethodService = async (startDate, endDate) => {
 };
 
 //get payment history with filtering
-const GetPaymentHistoryService = async (filters) => {
-    const { startDate, endDate, status, method, limit = 50 } = filters;
+const GetPaymentHistoryService = async (filters, userRole = "admin", userId = null) => {
+    const { startDate, endDate, status, method, limit = 50, distributorId } = filters;
 
     const query = {};
+
+    // Role-based filtering
+    if (userRole !== "admin") {
+        const userOrders = await Order.find({
+            $or: [
+                { orderBy: userId },
+                { distributorId: userId },
+                { subDistributorId: userId }
+            ]
+        }).select("_id");
+        const orderIds = userOrders.map(order => order._id);
+        query.orderId = { $in: orderIds };
+    } else if (distributorId) {
+        const distOrders = await Order.find({
+            $or: [
+                { distributorId: distributorId },
+                { subDistributorId: distributorId }
+            ]
+        }).select("_id");
+        const orderIds = distOrders.map(order => order._id);
+        query.orderId = { $in: orderIds };
+    }
 
     if (status) query.Paymentstatus = status;
     if (method) query.method = method;

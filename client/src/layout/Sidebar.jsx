@@ -112,6 +112,33 @@ const Sidebar = ({ isOpen, onClose }) => {
                 )}
               </Link>
             )}
+            <Link
+              to="/dashboard"
+              className={linkClass("/dashboard")}
+              onClick={onClose}
+            >
+              <div className="flex items-center gap-3">
+                <LayoutDashboard size={18} strokeWidth={2.5} />{" "}
+                <span>Dashboard</span>
+              </div>
+              {isActive("/dashboard") && (
+                <ChevronRight size={14} className="opacity-50" />
+              )}
+            </Link>
+
+            <Link
+              to="/analytics"
+              className={linkClass("/analytics")}
+              onClick={onClose}
+            >
+              <div className="flex items-center gap-3">
+                <BarChart3 size={18} strokeWidth={2.5} />{" "}
+                <span>Analytics</span>
+              </div>
+              {isActive("/analytics") && (
+                <ChevronRight size={14} className="opacity-50" />
+              )}
+            </Link>
           </div>
 
           {/* Group 2: Business (Role Based) */}
@@ -146,6 +173,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 </Link>
               </>
             )}
+            {/* Role Based Links could go here if needed, but keeping it clean as requested */}
 
             {/* Products: Read-only for retailers, full access for admin/distributor */}
             <Link

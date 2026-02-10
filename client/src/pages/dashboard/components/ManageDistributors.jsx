@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import DistributorTable from "./DistributorTable";
 import CreateUserModal from "../../../pages/dashboard/components/CreateUserModal";
-import { getDistributors } from "../../../api/auth/auth.api";
+import ResetPasswordModal from "./ResetPasswordModal";
+import { getDistributors, deleteUser } from "../../../api/auth/auth.api";
 import { toast } from "react-toastify";
 
 const ManageDistributors = () => {
   const [distributors, setDistributors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingDistributor, setEditingDistributor] = useState(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resettingUser, setResettingUser] = useState(null);
 
   const fetchDistributors = async () => {
     try {
@@ -26,9 +30,40 @@ const ManageDistributors = () => {
     fetchDistributors();
   }, []);
 
+  /* ================= HANDLERS ================= */
+  const handleEdit = (distributor) => {
+    setEditingDistributor(distributor);
+    setShowCreateModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this distributor? This action cannot be undone.")) {
+      try {
+        await deleteUser(id);
+        toast.success("Distributor deleted successfully");
+        fetchDistributors();
+      } catch (error) {
+        console.error("Failed to delete distributor", error);
+        toast.error("Failed to delete distributor");
+      }
+    }
+  };
+
+  const handleResetPassword = (distributor) => {
+    console.log("Reset password clicked for:", distributor);
+    setResettingUser(distributor);
+    setShowResetPasswordModal(true);
+  };
+
   const handleCreateSuccess = () => {
     setShowCreateModal(false);
+    setEditingDistributor(null); // Reset editing state
     fetchDistributors();
+  };
+
+  const handleCloseModal = () => {
+    setShowCreateModal(false);
+    setEditingDistributor(null);
   };
 
   /* ================= RENDER ================= */
@@ -41,7 +76,10 @@ const ManageDistributors = () => {
         </h1>
 
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => {
+            setEditingDistributor(null);
+            setShowCreateModal(true);
+          }}
           className="px-5 py-2 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
         >
           + Add Distributor
@@ -54,18 +92,38 @@ const ManageDistributors = () => {
       ) : (
         <DistributorTable
           distributors={distributors}
-          onEdit={(dist) => console.log("Edit", dist)} // TODO: Implement specific Edit if needed
-          onDelete={(id) => console.log("Delete", id)} // TODO: Implement Delete
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onResetPassword={handleResetPassword}
         />
       )}
 
-      {/* CREATE MODAL */}
-      <CreateUserModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        role="distributor"
-        onSuccess={handleCreateSuccess}
-      />
+      {/* CREATE / EDIT MODAL */}
+      {showCreateModal && (
+        <CreateUserModal
+          isOpen={showCreateModal}
+          onClose={handleCloseModal}
+          role="distributor"
+          onSuccess={handleCreateSuccess}
+          initialData={editingDistributor}
+        />
+      )}
+
+      {/* RESET PASSWORD MODAL */}
+      {showResetPasswordModal && resettingUser && (
+        <ResetPasswordModal
+          isOpen={showResetPasswordModal}
+          onClose={() => {
+            setShowResetPasswordModal(false);
+            setResettingUser(null);
+          }}
+          user={resettingUser}
+          onSuccess={() => {
+            setShowResetPasswordModal(false);
+            setResettingUser(null);
+          }}
+        />
+      )}
     </div>
   );
 };

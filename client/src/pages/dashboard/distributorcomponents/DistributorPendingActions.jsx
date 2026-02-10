@@ -1,38 +1,16 @@
-import React, { useState } from "react";
+import React from "react";
 import { Send, CheckCircle2, Box, User, CreditCard } from "lucide-react";
 
-const DistributorPendingActions = () => {
-  const [pendingOrders, setPendingOrders] = useState([
-    {
-      id: "ORD301",
-      customer: "Sub Dist A",
-      product: "Biryani Masala (100g)",
-      amount: "₹1,200",
-      status: "Pending",
-    },
-    {
-      id: "ORD302",
-      customer: "Sub Dist B",
-      product: "Chicken Masala (50g)",
-      amount: "₹750",
-      status: "Pending",
-    },
-    {
-      id: "ORD303",
-      customer: "Sub Dist C",
-      product: "Garam Masala (100g)",
-      amount: "₹980",
-      status: "Pending",
-    },
-  ]);
+const DistributorPendingActions = ({ orders = [] }) => {
+  const pendingOrders = orders; // We filter for "placed" in the parent
 
   const handleForward = (orderId) => {
-    // Add a small animation feel before removing
-    setPendingOrders((prev) => prev.filter((order) => order.id !== orderId));
+    // This would typically call an API to update status to "confirmed" or similar
+    console.log("Forwarding order:", orderId);
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full mt-10 transition-all hover:shadow-md">
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full transition-all hover:shadow-md">
       {/* Header */}
       <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-white">
         <div>
@@ -50,7 +28,7 @@ const DistributorPendingActions = () => {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1 overflow-x-auto scrollbar-hide">
         {pendingOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="bg-emerald-50 p-4 rounded-full mb-4">
@@ -66,10 +44,10 @@ const DistributorPendingActions = () => {
             <thead className="bg-slate-50/50">
               <tr>
                 <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Order & Customer
+                  Order & Detail
                 </th>
                 <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Product Details
+                  Items
                 </th>
                 <th className="p-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Action
@@ -79,38 +57,38 @@ const DistributorPendingActions = () => {
             <tbody className="divide-y divide-slate-50">
               {pendingOrders.map((order) => (
                 <tr
-                  key={order.id}
+                  key={order._id}
                   className="group hover:bg-slate-50/50 transition-colors"
                 >
                   <td className="p-4">
                     <div className="flex flex-col">
                       <span className="text-indigo-600 font-black text-sm tracking-tighter">
-                        #{order.id}
+                        #{order._id?.slice(-6).toUpperCase()}
                       </span>
-                      <div className="flex items-center gap-1 text-slate-500 text-xs mt-1">
-                        <User size={12} />
-                        <span className="font-semibold">{order.customer}</span>
+                      <div className="flex items-center gap-1 text-slate-500 text-[10px] mt-1">
+                        <User size={10} />
+                        <span className="font-semibold">{order.invoiceNumber}</span>
                       </div>
                     </div>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-1 text-slate-700 text-[13px] font-bold">
-                        <Box size={14} className="text-slate-400" />
-                        {order.product}
+                      <div className="flex items-center gap-1 text-slate-700 text-[11px] font-bold">
+                        <Box size={12} className="text-slate-400" />
+                        {order.products?.length || 0} products
                       </div>
                       <div className="flex items-center gap-1 text-slate-900 text-xs mt-1 font-black">
                         <CreditCard size={12} className="text-slate-400" />
-                        {order.amount}
+                        ₹{order.pricing?.grandTotal?.toLocaleString()}
                       </div>
                     </div>
                   </td>
                   <td className="p-4 text-right">
                     <button
-                      onClick={() => handleForward(order.id)}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider hover:bg-indigo-600 transition-all shadow-md active:scale-95 group-hover:shadow-indigo-200"
+                      onClick={() => handleForward(order._id)}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider hover:bg-indigo-600 transition-all shadow-md active:scale-95 group-hover:shadow-indigo-200"
                     >
-                      <Send size={14} />
+                      <Send size={12} />
                       Forward
                     </button>
                   </td>
@@ -124,7 +102,7 @@ const DistributorPendingActions = () => {
       {/* Footer Info */}
       {pendingOrders.length > 0 && (
         <div className="p-4 bg-slate-50/50 border-t border-slate-50">
-          <p className="text-[10px] text-slate-400 text-center font-medium italic">
+          <p className="text-[9px] text-slate-400 text-center font-medium italic">
             * Forwarding sends order details to the Admin for final dispatch.
           </p>
         </div>

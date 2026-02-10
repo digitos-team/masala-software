@@ -197,10 +197,13 @@ const verifyPayment = asyncHandler(async (req, res) => {
 /**
  * Get payment statistics
  * @route GET /api/payments/stats
- * @access Admin only
+ * @access Authenticated users
  */
 const getPaymentStats = asyncHandler(async (req, res) => {
-    const stats = await GetPaymentStatsService();
+    const userRole = req.user.role;
+    const userId = req.user._id;
+
+    const stats = await GetPaymentStatsService(req.query, userRole, userId);
 
     return res.status(200).json(
         new ApiResponse(200, stats, "Statistics retrieved successfully")
@@ -225,18 +228,22 @@ const getRevenueByMethod = asyncHandler(async (req, res) => {
 /**
  * Get payment history
  * @route GET /api/payments/history
- * @access Admin only
+ * @access Authenticated users
  */
 const getPaymentHistory = asyncHandler(async (req, res) => {
+    const userRole = req.user.role;
+    const userId = req.user._id;
+
     const filters = {
         startDate: req.query.startDate,
         endDate: req.query.endDate,
         status: req.query.status,
         method: req.query.method,
-        limit: req.query.limit
+        limit: req.query.limit,
+        distributorId: req.query.distributorId
     };
 
-    const result = await GetPaymentHistoryService(filters);
+    const result = await GetPaymentHistoryService(filters, userRole, userId);
 
     return res.status(200).json(
         new ApiResponse(200, result, "Payment history retrieved successfully")

@@ -1,42 +1,48 @@
 import { AlertTriangle, Truck, PackageX } from "lucide-react";
 
-const actions = [
-  {
-    title: "Orders Pending Approval",
-    count: 5,
-    description: "Orders waiting for admin approval",
-    icon: AlertTriangle,
-    styles: {
-      bg: "bg-amber-50",
-      text: "text-amber-700",
-      border: "border-amber-200",
-    },
-  },
-  {
-    title: "Ready for Dispatch",
-    count: 3,
-    description: "Approved orders not dispatched",
-    icon: Truck,
-    styles: {
-      bg: "bg-blue-50",
-      text: "text-blue-700",
-      border: "border-blue-200",
-    },
-  },
-  {
-    title: "Low Stock Alerts",
-    count: 2,
-    description: "Products running low on stock",
-    icon: PackageX,
-    styles: {
-      bg: "bg-rose-50",
-      text: "text-rose-700",
-      border: "border-rose-200",
-    },
-  },
-];
+const AdminPendingActions = ({ orderStats, productStats }) => {
 
-const AdminPendingActions = () => {
+  // Calculate counts from props
+  const pendingOrdersCount = orderStats?.ordersByStatus?.find(s => s._id === "placed")?.count || 0;
+  const readyForDispatchCount = orderStats?.ordersByStatus?.find(s => s._id === "confirmed")?.count || 0;
+  const lowStockCount = productStats?.lowStockProducts || 0;
+
+  const actions = [
+    {
+      title: "Orders Pending Approval",
+      count: pendingOrdersCount,
+      description: "Orders waiting for admin approval",
+      icon: AlertTriangle,
+      styles: {
+        bg: "bg-amber-50",
+        text: "text-amber-700",
+        border: "border-amber-200",
+      },
+    },
+    {
+      title: "Ready for Dispatch",
+      count: readyForDispatchCount,
+      description: "Approved orders not dispatched",
+      icon: Truck,
+      styles: {
+        bg: "bg-blue-50",
+        text: "text-blue-700",
+        border: "border-blue-200",
+      },
+    },
+    {
+      title: "Low Stock Alerts",
+      count: lowStockCount,
+      description: "Products running low on stock",
+      icon: PackageX,
+      styles: {
+        bg: "bg-rose-50",
+        text: "text-rose-700",
+        border: "border-rose-200",
+      },
+    },
+  ];
+
   return (
     <div className="relative z-0 bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 shadow-sm ">
       {/* Header */}

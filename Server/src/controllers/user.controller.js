@@ -3,7 +3,10 @@ import {
   LoginUserService,
   LogoutUserService,
   GetDistributorsService,
-  GetRetailersService
+  GetRetailersService,
+  DeleteUserService,
+  UpdateUserService,
+  UpdatePasswordService
 } from "../services/user.services.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
@@ -65,10 +68,45 @@ const getRetailers = asyncHandler(async (req, res) => {
   );
 });
 
+const deleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await DeleteUserService(id);
+  return res.status(200).json(
+    new ApiResponse(200, result, "User deleted successfully")
+  );
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updatedUser = await UpdateUserService(id, req.body);
+  return res.status(200).json(
+    new ApiResponse(200, updatedUser, "User updated successfully")
+  );
+});
+
+const updatePassword = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json(
+      new ApiResponse(400, null, "Password is required")
+    );
+  }
+
+  const result = await UpdatePasswordService(id, password);
+  return res.status(200).json(
+    new ApiResponse(200, result, "Password updated successfully")
+  );
+});
+
 export {
   registerUser,
   loginUser,
   logoutUser,
   getDistributors,
-  getRetailers
+  getRetailers,
+  deleteUser,
+  updateUser,
+  updatePassword
 }

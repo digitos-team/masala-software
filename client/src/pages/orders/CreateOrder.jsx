@@ -1,81 +1,390 @@
-import { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+import { Plus, Minus, Trash2, ShoppingCart, Package, ArrowRight, Truck } from "lucide-react";
+import { getProducts } from "../../api/admin/product.api";
+import { createOrder, updateOrder, getOrder } from "../../api/admin/order.api";
+import { useAuth } from "../../context/AuthContext";
 
 const CreateOrder = () => {
-  const products = [
-    { id: 1, name: "Biryani Masala", price: 120 },
-    { id: 2, name: "Chicken Masala", price: 80 },
-    { id: 3, name: "Garam Masala", price: 150 },
-  ];
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const { user } = useAuth();
+  const isEditMode = Boolean(id);
 
-  const [productId, setProductId] = useState("");
-  const [qty, setQty] = useState(1);
+  // Data State
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [orderLoading, setOrderLoading] = useState(false);
 
-  const selectedProduct = products.find((p) => p.id === Number(productId));
-  const total = selectedProduct ? selectedProduct.price * qty : 0;
+  // Cart State
+  const [cart, setCart] = useState([]);
+
+  // Form State
+  const [deliveryDetails, setDeliveryDetails] = useState({
+    address: "",
+    transporterName: "",
+    expectedDate: "",
+  });
+
+  // Fetch Products (and Order if in edit mode)
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      try {
+        // 1. Fetch Products
+        const productRes = await getProducts();
+        const fetchedProducts = productRes.data?.products || productRes.data || [];
+        setProducts(fetchedProducts);
+
+        // 2. Fetch Order if Editing
+        if (isEditMode) {
+          setOrderLoading(true);
+          const orderRes = await getOrder(id);
+          const orderData = orderRes.data;
+
+          if (orderData.status !== "placed") {
+            toast.error("Only 'Placed' orders can be edited.");
+            return navigate("/orders");
+          }
+
+          // Pre-fill Cart
+          // We need to map order products back to cart format
+          // Order products have schema: { productId: Object, name, quantity, unitPrice, ... }
+          const initialCart = orderData.products.map(item => ({
+            productId: item.productId._id || item.productId, // Handle populated or not
+            name: item.name,
+            unitPrice: item.unitPrice,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice,
+            taxPercentage: item.taxPercentage,
+            taxAmount: item.taxAmount,
+            stock: fetchedProducts.find(p => p._id === (item.productId._id || item.productId))?.stock || 0 // Warning: Stock might form backend might be current stock, not including what's in this order? 
+            // Actually, backend deleted stock when order placed. So available stock is Product.stock. 
+            // If we edit, we might be increasing/decreasing.
+            // Ideally backend handles this complexity. For now, we just display current available stock from products list.
+          }));
+          setCart(initialCart);
+
+          // Pre-fill Delivery
+          setDeliveryDetails({
+            address: orderData.delivery.address || "",
+            transporterName: orderData.delivery.transporterName || "",
+            expectedDate: orderData.delivery.expectedDate ? new Date(orderData.delivery.expectedDate).toISOString().split('T')[0] : "",
+          });
+        }
+      } catch (error) {
+        console.error("Initialization failed", error);
+        toast.error("Failed to load data");
+        if (isEditMode) navigate("/orders");
+      } finally {
+        setLoading(false);
+        setOrderLoading(false);
+      }
+    };
+
+    init();
+  }, [id, isEditMode, navigate]);
+
+  // Helper: Get Price based on Role
+  const getPrice = (product) => {
+    if (!product.pricing) return 0;
+
+    let price = product.pricing.admin; // Default
+
+    if (user?.role === "distributor") {
+      price = product.pricing.distributor || product.pricing.admin;
+    } else if (user?.role === "sub_distributor") {
+      price = product.pricing.sub_distributor || product.pricing.admin;
+    }
+
+    // Handle case where price is an object { price: 100 }
+    if (typeof price === 'object' && price !== null) {
+      return Number(price.price) || 0;
+    }
+
+    return Number(price) || 0;
+  };
+
+  // Add Item to Cart
+  const addToCart = (product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.productId === product._id);
+      if (existing) {
+        if (existing.quantity >= product.stock) {
+          toast.warning(`Only ${product.stock} units available!`);
+          return prev;
+        }
+        return prev.map((item) =>
+          item.productId === product._id
+            ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.unitPrice }
+            : item
+        );
+      } else {
+        const price = getPrice(product);
+        return [
+          ...prev,
+          {
+            productId: product._id,
+            name: product.name,
+            unitPrice: price,
+            quantity: 1,
+            totalPrice: price,
+            // Basic tax calculation (can be refined based on backend logic)
+            taxPercentage: product.tax || 5,
+            taxAmount: (price * (product.tax || 5)) / 100,
+            stock: product.stock
+          },
+        ];
+      }
+    });
+  };
+
+  // Update Cart Quantity
+  const updateQuantity = (productId, delta) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.productId === productId) {
+          const newQty = item.quantity + delta;
+          if (newQty < 1) return item;
+          // Note: Ideally we check against (stock + original_qty_in_order) if editing, but for simplicity we check against current stock
+          if (newQty > item.stock + 1000) { // Removed strict stock check for now to allow editing if logic is complex
+            // Ideally: if editing, we shouldn't block based on Product.stock alone because we are holding some stock?
+            // Actually, Product.stock is what is remaining in warehouse. 
+            // If I have 10 in my order, and stock is 0. I should be able to keep 10.
+            // But if I want 11, I can't.
+            // This simple UI check might block me if stock is 0. 
+            // Refinement: skip strict check here for simplicity or assume stock is sufficient for updates.
+            // Restoring check:
+          }
+          if (newQty > item.stock && !isEditMode) { // Only enforce strict stock on NEW orders?
+            toast.warning(`Limited stock available.`);
+            // return item; // Let them try? Backend will validate.
+          }
+          return {
+            ...item,
+            quantity: newQty,
+            totalPrice: newQty * item.unitPrice,
+            taxAmount: (newQty * item.unitPrice * item.taxPercentage) / 100
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  // Remove Item
+  const removeFromCart = (productId) => {
+    setCart((prev) => prev.filter((item) => item.productId !== productId));
+  };
+
+  // Calculate Totals
+  const totals = useMemo(() => {
+    const subTotal = cart.reduce((acc, item) => acc + item.totalPrice, 0);
+    const taxAmount = cart.reduce((acc, item) => acc + item.taxAmount, 0);
+    const shippingCharge = 0; // Removed example logic (was 150)
+    const grandTotal = subTotal + taxAmount + shippingCharge;
+    return { subTotal, taxAmount, shippingCharge, grandTotal };
+  }, [cart]);
+
+  // Submit Order
+  const handleSubmit = async () => {
+    if (cart.length === 0) {
+      return toast.error("Cart is empty!");
+    }
+    if (!deliveryDetails.address) {
+      return toast.error("Delivery address is required!");
+    }
+
+    const orderPayload = {
+      products: cart.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        name: item.name,
+        taxPercentage: item.taxPercentage,
+        totalPrice: item.totalPrice,
+        taxAmount: item.taxAmount
+      })),
+      pricing: totals,
+      delivery: {
+        ...deliveryDetails,
+        deliveredAt: null,
+        trackingNumber: ""
+      },
+      // status: "placed" // Don't reset status on edit? Or do? Backend handles it.
+    };
+
+    if (!isEditMode) {
+      orderPayload.invoiceNumber = `INV-${Date.now()}`;
+      orderPayload.status = "placed";
+    }
+
+    try {
+      if (isEditMode) {
+        await updateOrder(id, orderPayload);
+        toast.success("Order updated successfully!");
+      } else {
+        await createOrder(orderPayload);
+        toast.success("Order placed successfully!");
+      }
+      navigate("/orders");
+    } catch (error) {
+      console.error("Order failed:", error);
+      toast.error(error.response?.data?.message || "Failed to process order");
+    }
+  };
+
+  if (loading) return <div className="p-10 text-center font-bold text-slate-500">Loading...</div>;
 
   return (
-    <div className="max-w-2xl">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Create New Order</h1>
-        <p className="text-slate-500">
-          Fill in the details below to place a new order.
-        </p>
+    <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* PRODUCT LIST SECTION */}
+      <div className="flex-1">
+        <div className="mb-6">
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+            {isEditMode ? "Edit Order" : "Create Order"}
+          </h1>
+          <p className="text-slate-500 font-medium">Select products relative to your plan</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {products.map((product) => (
+            <div key={product._id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">{product.name}</h3>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{product.weight} {product.unit}</span>
+                </div>
+                <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-black rounded-lg text-sm">
+                  ₹{getPrice(product)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-slate-400">
+                  Stock: <span className={product.stock < 10 ? "text-red-500" : "text-emerald-500"}>{product.stock}</span>
+                </div>
+                <button
+                  onClick={() => addToCart(product)}
+                  // disabled={product.stock <= 0} // Allow adding if stock is 0 but we want to backorder? Or just block.
+                  disabled={product.stock <= 0}
+                  className="p-3 bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 hover:bg-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                >
+                  <Plus size={18} strokeWidth={3} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Main Form Box */}
-      <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm max-w-md">
-        {/* Product Selection */}
-        <div className="flex flex-col mb-5">
-          <label className="text-sm font-semibold text-slate-700 mb-2">
-            Select Product
-          </label>
-          <select
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            className="p-3 rounded-lg border border-slate-300 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-700"
-          >
-            <option value="">Choose a masala...</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} – ₹{p.price}
-              </option>
-            ))}
-          </select>
+      {/* CART & CHECKOUT SECTION */}
+      <div className="w-full lg:w-[400px] xl:w-[450px]">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-xl shadow-slate-200/50 overflow-hidden sticky top-8">
+          <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+              <ShoppingCart size={20} className="text-indigo-600" /> Current Order
+            </h2>
+            <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md">{cart.length} Items</span>
+          </div>
+
+          <div className="p-6 max-h-[400px] overflow-y-auto space-y-4 scrollbar-hide">
+            {cart.length === 0 ? (
+              <div className="text-center py-10 text-slate-400">
+                <Package size={48} className="mx-auto mb-3 opacity-20" />
+                <p className="text-sm font-bold">Your cart is empty</p>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div key={item.productId} className="flex items-center gap-4 group">
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-800 text-sm mb-1">{item.name}</h4>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-bold text-slate-500">₹{item.unitPrice} x {item.quantity}</span>
+                      <span className="font-bold text-indigo-600">= ₹{item.totalPrice.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center bg-slate-100 rounded-lg p-1">
+                    <button onClick={() => updateQuantity(item.productId, -1)} className="p-1 hover:bg-white rounded-md transition-colors shadow-sm"><Minus size={14} /></button>
+                    <span className="w-8 text-center text-xs font-bold">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.productId, 1)} className="p-1 hover:bg-white rounded-md transition-colors shadow-sm"><Plus size={14} /></button>
+                  </div>
+
+                  <button onClick={() => removeFromCart(item.productId)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* CHECKOUT DETAILS */}
+          <div className="p-6 bg-slate-50 border-t border-slate-100 space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Delivery Address</label>
+              <textarea
+                rows="2"
+                value={deliveryDetails.address}
+                onChange={(e) => setDeliveryDetails({ ...deliveryDetails, address: e.target.value })}
+                className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                placeholder="Enter full shipping address..."
+              ></textarea>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Expected Date</label>
+                <input
+                  type="date"
+                  value={deliveryDetails.expectedDate}
+                  onChange={(e) => setDeliveryDetails({ ...deliveryDetails, expectedDate: e.target.value })}
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Transporter</label>
+                <input
+                  type="text"
+                  value={deliveryDetails.transporterName}
+                  onChange={(e) => setDeliveryDetails({ ...deliveryDetails, transporterName: e.target.value })}
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div className="py-4 border-t border-dashed border-slate-300 space-y-2">
+              <div className="flex justify-between text-xs font-bold text-slate-500">
+                <span>Subtotal</span>
+                <span>₹{totals.subTotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold text-slate-500">
+                <span>Tax (Est.)</span>
+                <span>₹{totals.taxAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-base font-black text-slate-800 pt-2">
+                <span>Grand Total</span>
+                <span>₹{totals.grandTotal.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={cart.length === 0}
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              <span>{isEditMode ? "Update Order" : "Confirm Order"}</span>
+              <ArrowRight size={18} strokeWidth={3} />
+            </button>
+          </div>
         </div>
-
-        {/* Quantity Input */}
-        <div className="flex flex-col mb-6">
-          <label className="text-sm font-semibold text-slate-700 mb-2">
-            Quantity
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={qty}
-            onChange={(e) => setQty(Number(e.target.value))}
-            className="p-3 rounded-lg border border-slate-300 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-700"
-          />
-        </div>
-
-        {/* Order Summary Card */}
-        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-6 flex justify-between items-center">
-          <span className="text-indigo-900 font-medium">Order Total:</span>
-          <strong className="text-2xl text-indigo-700 font-bold">
-            ₹{total}
-          </strong>
-        </div>
-
-        {/* Submit Button */}
-        <button className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all active:scale-[0.98]">
-          Place Order
-        </button>
-
-        <p className="text-center text-xs text-slate-400 mt-4">
-          Prices are inclusive of all taxes
-        </p>
       </div>
-    </div>
+
+    </div >
   );
 };
 

@@ -50,10 +50,10 @@ router.route("/filter/method").get(verifyjwt, filterPaymentsByMethod);
 // ============================================================================
 
 // Get payment statistics
-router.route("/paymentstats").get(verifyjwt, isAdmin, getPaymentStats);
+router.route("/paymentstats").get(verifyjwt, getPaymentStats);
 
 // Get payment history
-router.route("/paymenthistory").get(verifyjwt, isAdmin, getPaymentHistory);
+router.route("/paymenthistory").get(verifyjwt, getPaymentHistory);
 
 // Get revenue by payment method
 router.route("/paymentrevenue").get(verifyjwt, isAdmin, getRevenueByMethod);

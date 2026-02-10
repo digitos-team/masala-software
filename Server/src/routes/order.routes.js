@@ -43,8 +43,8 @@ router.route("/neworder").post(verifyjwt, createOrder);
 // Only admin users can access these routes
 // ============================================================================
 
-// Update order
-router.route("/updateorder/:id").patch(verifyjwt, isAdmin, updateOrder);
+// Update order (Distributors can update own orders, Admins can update any)
+router.route("/updateorder/:id").patch(verifyjwt, updateOrder);
 
 // Delete order
 router.route("/deleteorder/:id").delete(verifyjwt, isAdmin, deleteOrder);

@@ -14,6 +14,7 @@ import { AuthProvider } from "../context/AuthContext";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 import ManageDistributors from "../pages/dashboard/components/ManageDistributors";
 import ManageSubDistributors from "../pages/dashboard/components/ManageSubDistributors";
+import Analytics from "../pages/dashboard/Analytics";
 
 const AppRoutes = () => {
   return (
@@ -34,11 +35,13 @@ const AppRoutes = () => {
                 <Route path="/subdistributor-dashboard" element={<SubDistributorDashboard />} />
               </Route>
 
+
               {/* Admin and Distributor Routes */}
               <Route element={<ProtectedRoute allowedRoles={["admin", "distributor"]} />}>
                 <Route path="/products" element={<Products />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/orders/create" element={<CreateOrder />} />
+                <Route path="/orders/edit/:id" element={<CreateOrder />} />
                 <Route path="/orders/:id" element={<OrderDetails />} />
                 <Route path="/reports" element={<Reports />} />
               </Route>
@@ -46,8 +49,10 @@ const AppRoutes = () => {
               {/* Admin Only Routes */}
               <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
                 <Route path="/distributor-dashboard" element={<DistributorDashboard />} />
+                <Route path="/subdistributor-dashboard" element={<SubDistributorDashboard />} />
                 <Route path="/manage-distributors" element={<ManageDistributors />} />
                 <Route path="/manage-sub-distributors" element={<ManageSubDistributors />} />
+                <Route path="/analytics" element={<Analytics />} />
               </Route>
             </Route>
           </Route>

@@ -1,6 +1,6 @@
 import axiosInstance from "../axiosInstance";
 
 export const getDashboardStats = async () => {
-  const response = await axiosInstance.get("/api/dashboard/stats"); // Corrected assuming common prefix
+  const response = await axiosInstance.get("/dashboard/stats"); // Corrected assuming common prefix
   return response.data;
 };

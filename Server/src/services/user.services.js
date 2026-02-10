@@ -63,10 +63,49 @@ const GetRetailersService = async () => {
     return retailers;
 }
 
+const DeleteUserService = async (userId) => {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
+
+    await User.findByIdAndDelete(userId);
+    return { message: "User deleted successfully" };
+}
+
+const UpdateUserService = async (userId, updateData) => {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
+
+    // Prevent role update if needed, or validate it
+    // For now allowing basic updates including name, email, phone, status
+
+    const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true }
+    ).select("-password");
+
+    return updatedUser;
+}
+
+const UpdatePasswordService = async (userId, newPassword) => {
+    const user = await User.findById(userId);
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    user.password = newPassword;
+    await user.save(); // pre-save hook hashes password
+
+    return { message: "Password updated successfully" };
+};
 export {
     RegisterUserService,
     LoginUserService,
     LogoutUserService,
     GetDistributorsService,
-    GetRetailersService
+    GetRetailersService,
+    DeleteUserService,
+    UpdateUserService,
+    UpdatePasswordService
 }
