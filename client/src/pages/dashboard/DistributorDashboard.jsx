@@ -1,24 +1,23 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import DistributorSalesChart from "./distributorcomponents/DistributorSalesChart";
-import DistributorPendingActions from "./distributorcomponents/DistributorPendingActions";
+import DistributorIncomingOrders from "./distributorcomponents/DistributorIncomingOrders";
+import DistributorPurchases from "./distributorcomponents/DistributorPurchases";
+import { useAuth } from "../../context/AuthContext";
 import { getProducts } from "../../api/admin/product.api";
 import { getAllOrders } from "../../api/admin/order.api";
 import { getPaymentStats } from "../../api/admin/payment.api";
 import {
-  AlertTriangle,
-  Trophy,
-  Target,
   Plus,
   Activity,
-  ChevronRight,
   ArrowUpRight,
-  Clock,
   Wallet,
+  Trophy,
 } from "lucide-react";
 
 const DistributorDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [paymentStats, setPaymentStats] = useState({ today: 0, month: 0 });
@@ -57,11 +56,23 @@ const DistributorDashboard = () => {
     const today = new Date().toISOString().split("T")[0];
     const currentMonth = new Date().toISOString().slice(0, 7);
 
-    const todayOrders = orders.filter((o) => o.createdAt?.startsWith(today) && o.status !== "cancelled");
-    const monthOrders = orders.filter((o) => o.createdAt?.startsWith(currentMonth) && o.status !== "cancelled");
+    // Filter Sales (Orders placed TO me) and Purchases (Orders I placed)
+    const myId = user?._id;
+    const incomingSales = orders.filter(o => {
+      const distId = o.distributorId?._id || o.distributorId;
+      return distId === myId && o.orderBy?._id !== myId && o.orderBy !== myId;
+    });
 
-    const todaySales = todayOrders.reduce((acc, o) => acc + (o.pricing?.grandTotal || 0), 0);
-    const monthSales = monthOrders.reduce((acc, o) => acc + (o.pricing?.grandTotal || 0), 0);
+    const myPurchases = orders.filter(o => {
+      const orderById = o.orderBy?._id || o.orderBy;
+      return orderById === myId;
+    });
+
+    const todaySales = incomingSales.filter((o) => o.createdAt?.startsWith(today) && o.status !== "cancelled")
+      .reduce((acc, o) => acc + (o.pricing?.grandTotal || 0), 0);
+
+    const monthSales = incomingSales.filter((o) => o.createdAt?.startsWith(currentMonth) && o.status !== "cancelled")
+      .reduce((acc, o) => acc + (o.pricing?.grandTotal || 0), 0);
 
     const lowStockAlerts = products.filter(p => p.stock <= (p.minStockAlert || 10));
 
@@ -70,10 +81,13 @@ const DistributorDashboard = () => {
       monthSales,
       todayCollection: paymentStats.today,
       monthCollection: paymentStats.month,
-      totalOrders: orders.length,
-      lowStockAlerts: lowStockAlerts.slice(0, 3)
+      totalSalesCount: incomingSales.length,
+      totalPurchasesCount: myPurchases.length,
+      lowStockAlerts: lowStockAlerts.slice(0, 3),
+      incomingSales,
+      myPurchases
     };
-  }, [orders, products, paymentStats]);
+  }, [orders, products, paymentStats, user?._id]);
 
   if (loading) {
     return (
@@ -108,7 +122,7 @@ const DistributorDashboard = () => {
               onClick={() => navigate('/orders/create')}
               className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3.5 rounded-xl font-black text-sm shadow-xl shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all"
             >
-              <Plus size={18} strokeWidth={3} /> New Order
+              <Plus size={18} strokeWidth={3} /> New Purchase
             </button>
           </div>
         </div>
@@ -116,7 +130,7 @@ const DistributorDashboard = () => {
         {/* --- 📊 TOP LAYER: ANALYTICS --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm overflow-hidden p-2">
-            <DistributorSalesChart orders={orders} />
+            <DistributorSalesChart orders={stats.incomingSales} />
           </div>
 
           {/* REVENUE GOAL */}
@@ -143,7 +157,7 @@ const DistributorDashboard = () => {
                   <span className="text-emerald-600 font-black">₹{stats.todayCollection.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
-                  <span>Billed (This Month)</span>
+                  <span>Billed Sales (Month)</span>
                   <span className="text-indigo-600 font-black">₹{stats.monthSales.toLocaleString()}</span>
                 </div>
                 <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200/50 p-[2px]">
@@ -186,68 +200,35 @@ const DistributorDashboard = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
-            <DistributorPendingActions orders={orders.filter(o => o.status === "placed")} />
-          </div>
 
-          {/* TOTAL ORDERS */}
+
+          {/* TOTAL SALES */}
           <div className="lg:col-span-1 bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200 text-white relative overflow-hidden group">
             <Trophy className="absolute right-[-10px] bottom-[-10px] text-white/5 w-32 h-32 rotate-12" />
             <h3 className="font-black tracking-[0.1em] text-[10px] uppercase text-indigo-400 mb-8">Overall Performance</h3>
             <div className="flex items-center gap-4 mb-10 relative z-10">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center font-black text-2xl shadow-lg border border-indigo-400/20">
-                {stats.totalOrders}
+                {stats.totalSalesCount}
               </div>
               <div>
-                <p className="font-black text-white text-xl tracking-tight leading-none">Total Orders</p>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">Placed till date</p>
+                <p className="font-black text-white text-xl tracking-tight leading-none">Retailer Orders</p>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">Incoming till date</p>
               </div>
             </div>
             <button
               onClick={() => navigate('/orders')}
               className="w-full bg-white/10 backdrop-blur-md hover:bg-white/20 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all relative z-10 border border-white/5"
             >
-              View Detailed Metrics
+              View All Orders
             </button>
           </div>
         </div>
 
-        {/* --- Network Section --- */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-200/50 shadow-sm p-8 overflow-hidden">
-          <h3 className="font-black text-slate-900 text-lg tracking-tight mb-2">My Recent Sales</h3>
-          <p className="text-slate-400 text-xs font-bold mb-6">Latest 5 orders placed through this account</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-y border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Order ID</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Products</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {orders.slice(0, 5).map(order => (
-                  <tr key={order._id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-black font-mono text-indigo-600 text-sm">#{order._id?.slice(-6).toUpperCase()}</td>
-                    <td className="px-6 py-4 text-xs font-bold text-slate-500">{new Date(order.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-xs font-bold text-slate-700">{order.products?.length || 0} items</td>
-                    <td className="px-6 py-4 font-black text-slate-900 text-sm">₹{order.pricing?.grandTotal?.toLocaleString()}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-full uppercase">{order.status}</span>
-                    </td>
-                  </tr>
-                ))}
-                {orders.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center text-slate-400 font-bold italic">No recent sales found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* --- Modular Order Sections --- */}
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <DistributorIncomingOrders orders={stats.incomingSales} />
+          <DistributorPurchases orders={stats.myPurchases} />
+        </section>
       </div>
     </div>
   );

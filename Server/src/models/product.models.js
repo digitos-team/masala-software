@@ -48,6 +48,11 @@ const ProductSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   },
+  parentProductId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    default: null
+  },
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"

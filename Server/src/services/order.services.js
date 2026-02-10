@@ -264,9 +264,13 @@ const GetAllOrdersService = async (queryParams, userRole, userId) => {
     // Build query
     const query = {};
 
-    // Non-admin users can only see their own orders
+    // Non-admin users can only see their own orders OR orders placed to them as a supplier
     if (userRole !== "admin") {
-        query.orderBy = userId;
+        query.$or = [
+            { orderBy: userId },
+            { distributorId: userId },
+            { subDistributorId: userId }
+        ];
     }
 
     // Filter by status
@@ -339,7 +343,7 @@ const GetAllOrdersService = async (queryParams, userRole, userId) => {
  * Update order status
  * Now handles cancel and return logic automatically
  */
-const UpdateOrderStatusService = async (orderId, newStatus, reason = null) => {
+const UpdateOrderStatusService = async (orderId, newStatus, reason = null, userRole = "admin", userId = null) => {
     const validStatuses = ["placed", "confirmed", "shipped", "delivered", "cancelled", "returned"];
 
     if (!validStatuses.includes(newStatus)) {
@@ -350,6 +354,26 @@ const UpdateOrderStatusService = async (orderId, newStatus, reason = null) => {
 
     if (!order) {
         throw new ApiError(404, "Order not found");
+    }
+
+    // Permission check: Admin or Supplier of the order
+    if (userRole !== "admin") {
+        if (!userId) {
+            throw new ApiError(401, "User ID is required for non-admin status updates");
+        }
+
+        const getIdString = (field) => {
+            if (!field) return null;
+            if (field._id) return field._id.toString();
+            return field.toString();
+        };
+
+        const distId = getIdString(order.distributorId);
+        const subDistId = getIdString(order.subDistributorId);
+
+        if (distId !== userId.toString() && subDistId !== userId.toString()) {
+            throw new ApiError(403, "You don't have permission to update the status of this order as you are not the supplier");
+        }
     }
 
     // Validate status transition
@@ -408,9 +432,44 @@ const UpdateOrderStatusService = async (orderId, newStatus, reason = null) => {
         updateData.returnedAt = new Date();
     }
 
-    // Handle DELIVERED status
+    // Handle DELIVERED status - SYNC STOCK TO RECIPIENT
     if (newStatus === "delivered") {
         updateData["delivery.deliveredAt"] = new Date();
+
+        // Recipient is the user who placed the order or the assigned sub-distributor
+        const recipientId = order.subDistributorId || order.orderBy;
+
+        for (const item of order.products) {
+            // Find existing product for this user that points to the original admin product
+            let recipientProduct = await Product.findOne({
+                createdBy: recipientId,
+                parentProductId: item.productId
+            });
+
+            if (!recipientProduct) {
+                // If not exists, fetch original product details to create copy
+                const originalProduct = await Product.findById(item.productId);
+                if (originalProduct) {
+                    recipientProduct = await Product.create({
+                        name: originalProduct.name,
+                        unit: originalProduct.unit,
+                        quantity: originalProduct.quantity,
+                        pricing: originalProduct.pricing,
+                        taxpercentage: originalProduct.taxpercentage,
+                        minStockAlert: originalProduct.minStockAlert,
+                        stock: item.quantity, // Initial stock from this delivery
+                        totalPrice: originalProduct.totalPrice,
+                        createdBy: recipientId,
+                        parentProductId: item.productId
+                    });
+                }
+            } else {
+                // Update existing product stock
+                await Product.findByIdAndUpdate(recipientProduct._id, {
+                    $inc: { stock: item.quantity }
+                });
+            }
+        }
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(

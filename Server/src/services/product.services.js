@@ -108,11 +108,16 @@ const GetProductByIdService = async (productId, userRole) => {
 /**
  * Update product by ID
  */
-const UpdateProductService = async (productId, updateData, userId) => {
+const UpdateProductService = async (productId, updateData, userId, userRole) => {
     const product = await Product.findById(productId);
 
     if (!product) {
         throw new ApiError(404, "Product not found");
+    }
+
+    // Ownership check: Distributor can only update their own products
+    if (userRole === "distributor" && product.createdBy.toString() !== userId.toString()) {
+        throw new ApiError(403, "Forbidden: You can only update your own products");
     }
 
     // Add updatedBy
@@ -131,15 +136,20 @@ const UpdateProductService = async (productId, updateData, userId) => {
 /**
  * Delete product by ID
  */
-const DeleteProductService = async (productId) => {
+const DeleteProductService = async (productId, userId, userRole) => {
     const product = await Product.findById(productId);
 
     if (!product) {
         throw new ApiError(404, "Product not found");
     }
 
+    // Ownership check: Distributor can only delete their own products
+    if (userRole === "distributor" && product.createdBy.toString() !== userId.toString()) {
+        throw new ApiError(403, "Forbidden: You can only delete your own products");
+    }
+
     await Product.findByIdAndDelete(productId);
-    return { message: "Product deleted successfully" };
+    return { id: productId };
 };
 
 // ============================================================================
@@ -165,7 +175,7 @@ const GetAllProductsService = async (queryParams, userRole) => {
     } = queryParams;
 
     // Build query
-    const query = {};
+    const query = { parentProductId: null };
 
     // Search by name
     if (search) {

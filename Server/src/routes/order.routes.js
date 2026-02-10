@@ -50,7 +50,7 @@ router.route("/updateorder/:id").patch(verifyjwt, updateOrder);
 router.route("/deleteorder/:id").delete(verifyjwt, isAdmin, deleteOrder);
 
 // Update order status
-router.route("/updatestatus/:id").patch(verifyjwt, isAdmin, updateOrderStatus);
+router.route("/updatestatus/:id").patch(verifyjwt, updateOrderStatus);
 
 
 

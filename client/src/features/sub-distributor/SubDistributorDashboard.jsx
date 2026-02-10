@@ -1,7 +1,7 @@
+import { Link } from "react-router-dom";
 import SubDistributorStats from "./components/SubDistributorStats";
 import MySalesChart from "./components/MySalesChart";
 import MyOrders from "./components/MyOrders";
-import CreateOrder from "./components/CreateOrder";
 import ProfileCard from "./components/ProfileCard";
 
 const SubDistributorDashboard = () => {
@@ -18,10 +18,12 @@ const SubDistributorDashboard = () => {
           </p>
         </div>
 
-        {/* Optional: Add a quick action button here if needed */}
-        <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95">
-          Download Report
-        </button>
+        <Link
+          to="/orders/create"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95"
+        >
+          Create New Order
+        </Link>
       </div>
 
       <div className="max-w-7xl mx-auto space-y-8">
@@ -36,10 +38,6 @@ const SubDistributorDashboard = () => {
           <div className="lg:col-span-8 space-y-8">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden transition-hover hover:shadow-md">
               <MySalesChart />
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-1 transition-hover hover:shadow-md">
-              <CreateOrder />
             </div>
           </div>
 
@@ -59,7 +57,7 @@ const SubDistributorDashboard = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

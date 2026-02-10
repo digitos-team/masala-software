@@ -29,3 +29,9 @@ export const getProductStats = async () => {
   const response = await axiosInstance.get("/products/stats");
   return response.data;
 };
+
+// GET PRODUCTS BY USER
+export const getProductsByUser = async (userId) => {
+  const response = await axiosInstance.get(`/products/user/${userId}`);
+  return response.data;
+};

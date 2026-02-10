@@ -120,7 +120,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         );
     }
 
-    const order = await UpdateOrderStatusService(id, status, reason);
+    const order = await UpdateOrderStatusService(id, status, reason, req.user.role, req.user._id);
 
     return res.status(200).json(
         new ApiResponse(200, order, "Order status updated successfully")

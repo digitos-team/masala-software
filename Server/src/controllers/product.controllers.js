@@ -49,7 +49,7 @@ const getProduct = asyncHandler(async (req, res) => {
     const product = await GetProductByIdService(id, userRole);
 
     return res.status(200).json(
-        new ApiResponse(200, product, "Product retrieved successfully")
+        new ApiResponse(200, product, "Product fetched successfully")
     );
 });
 
@@ -75,7 +75,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
 const updateProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const product = await UpdateProductService(id, req.body, req.user._id);
+    const product = await UpdateProductService(id, req.body, req.user._id, req.user.role);
 
     return res.status(200).json(
         new ApiResponse(200, product, "Product updated successfully")
@@ -90,7 +90,7 @@ const updateProduct = asyncHandler(async (req, res) => {
 const deleteProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const result = await DeleteProductService(id);
+    const result = await DeleteProductService(id, req.user._id, req.user.role);
 
     return res.status(200).json(
         new ApiResponse(200, result, "Product deleted successfully")

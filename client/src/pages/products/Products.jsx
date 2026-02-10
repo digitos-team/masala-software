@@ -7,7 +7,7 @@ import { Edit, Trash2 } from "lucide-react";
 
 const Products = () => {
   const { user } = useAuth();
-  const isDistributor = user?.role === "distributor";
+  const isAdmin = user?.role === "admin";
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,21 +21,16 @@ const Products = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const params = {
-        search: searchQuery,
 
-      };
-
-      // If stock filter is applied
-      if (stockFilter === "low_stock") {
-
-      }
-
-      const data = await getProducts(params);
-      setProducts(data?.data?.products || []);
+      // Fetch products based on ownership
+      // Admins see their catalog, Distributors/Retailers see their inventory
+      const { getProductsByUser } = await import("../../api/admin/product.api");
+      const data = await getProductsByUser(user._id);
+      const userProducts = data?.data?.products || data?.data || [];
+      setProducts(userProducts);
     } catch (error) {
       toast.error("Failed to load products");
-      console.error(error);
+      setProducts([]); // Set empty array on error to avoid showing stale data
     } finally {
       setLoading(false);
     }
@@ -108,7 +103,7 @@ const Products = () => {
             {/* Search Icon could go here */}
           </div>
 
-          {!isDistributor && (
+          {isAdmin && (
             <button
               onClick={handleAdd}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-semibold text-sm flex items-center shadow-lg shadow-indigo-200 transition-all active:scale-95 whitespace-nowrap"
@@ -143,7 +138,7 @@ const Products = () => {
                   <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                     Status
                   </th>
-                  {!isDistributor && (
+                  {isAdmin && (
                     <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
                       Actions
                     </th>
@@ -180,8 +175,7 @@ const Products = () => {
                         const pricing = p.pricing || {};
                         if (user?.role === "admin") return pricing.admin?.mrp || 0;
                         if (user?.role === "distributor") return pricing.distributor?.price || 0;
-                        if (user?.role === "sub_distributor") return pricing.sub_distributor?.price || 0;
-                        return p.price || 0;
+                        return pricing.sub_distributor?.price || 0;
                       })()}
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-600">
@@ -194,7 +188,7 @@ const Products = () => {
                         {p.stock > 0 ? "In Stock" : "Out of Stock"}
                       </span>
                     </td>
-                    {!isDistributor && (
+                    {isAdmin && (
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button

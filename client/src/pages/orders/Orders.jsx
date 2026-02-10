@@ -15,10 +15,18 @@ const Orders = () => {
     try {
       setLoading(true);
       const data = await getAllOrders();
-      // Adjust based on the actual backend response (might be { orders, pagination } or { data: { orders } })
-      // Based on order.controllers.js, getAllOrders returns new ApiResponse(200, result, "...")
-      // and result is likely { orders, pagination }
-      setOrders(data?.data?.orders || data?.data || []);
+      const allOrders = data?.data?.orders || data?.data || [];
+
+      // For distributors, only show orders THEY placed (My Purchases)
+      if (role === 'distributor') {
+        const myPurchases = allOrders.filter(o => {
+          const orderById = o.orderBy?._id || o.orderBy;
+          return orderById === user._id;
+        });
+        setOrders(myPurchases);
+      } else {
+        setOrders(allOrders);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to load orders");
@@ -29,7 +37,7 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, [role]);
+  }, [role, user._id]);
 
   // 🎨 Status styles
   const getStatusClass = (status) => {

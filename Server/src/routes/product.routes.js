@@ -43,7 +43,7 @@ router.route("/filter/price").get(verifyjwt, filterProductsByPrice);
 // ============================================================================
 
 // Create new product
-router.route("/addproduct").post(verifyjwt, isAdmin, createProduct);
+router.route("/addproduct").post(verifyjwt, createProduct); // Controller should handle role check or use a combined middleware
 
 // Get low stock products (MUST be before /:id routes)
 router.route("/lowstock").get(verifyjwt, isAdmin, getLowStockProducts);
@@ -62,19 +62,19 @@ router.route("/inventory/value").get(verifyjwt, isAdmin, getInventoryValue);
 router.route("/getproduct/:id").get(verifyjwt, getProduct);
 
 // Update product
-router.route("/updateproduct/:id").patch(verifyjwt, isAdmin, updateProduct);
+router.route("/updateproduct/:id").patch(verifyjwt, updateProduct);
 
 // Delete product
-router.route("/deleteproduct/:id").delete(verifyjwt, isAdmin, deleteProduct);
+router.route("/deleteproduct/:id").delete(verifyjwt, deleteProduct);
 
 // Update product stock
-router.route("/updatestock/:id").patch(verifyjwt, isAdmin, updateStock);
+router.route("/updatestock/:id").patch(verifyjwt, updateStock);
 
 // Check stock availability
 router.route("/check-stock/:id").get(verifyjwt, checkStockAvailability);
 
 // Get products by user
-router.route("/user/:userId").get(verifyjwt, isAdmin, getProductsByUser);
+router.route("/user/:userId").get(verifyjwt, getProductsByUser);
 
 // ============================================================================
 // BULK OPERATION ROUTES (ADMIN ONLY)

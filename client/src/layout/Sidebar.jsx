@@ -12,6 +12,7 @@ import {
   X,
   Zap,
   ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -79,39 +80,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               Analysis
             </p>
 
-            {/* Retailer sees their own dashboard */}
-            {role === "retailer" && (
-              <Link
-                to="/subdistributor-dashboard"
-                className={linkClass("/subdistributor-dashboard")}
-                onClick={onClose}
-              >
-                <div className="flex items-center gap-3">
-                  <LayoutDashboard size={18} strokeWidth={2.5} />{" "}
-                  <span>My Dashboard</span>
-                </div>
-                {isActive("/subdistributor-dashboard") && (
-                  <ChevronRight size={14} className="opacity-50" />
-                )}
-              </Link>
-            )}
-
-            {/* Admin and Distributor see main dashboard */}
-            {(role === "admin" || role === "distributor") && (
-              <Link
-                to="/dashboard"
-                className={linkClass("/dashboard")}
-                onClick={onClose}
-              >
-                <div className="flex items-center gap-3">
-                  <LayoutDashboard size={18} strokeWidth={2.5} />{" "}
-                  <span>Dashboard</span>
-                </div>
-                {isActive("/dashboard") && (
-                  <ChevronRight size={14} className="opacity-50" />
-                )}
-              </Link>
-            )}
+            {/* Dashboards */}
             <Link
               to="/dashboard"
               className={linkClass("/dashboard")}
@@ -141,41 +110,13 @@ const Sidebar = ({ isOpen, onClose }) => {
             </Link>
           </div>
 
-          {/* Group 2: Business (Role Based) */}
+          {/* Group 2: Business Operations */}
           <div className="space-y-1">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-3 px-2">
-              {role === "retailer" ? "Products" : "Network"}
+              Operations
             </p>
 
-            {/* Admin Only: Distributor & Sub-Distributor Management */}
-            {role === "admin" && (
-              <>
-                <Link
-                  to="/distributor-dashboard"
-                  className={linkClass("/distributor-dashboard")}
-                  onClick={onClose}
-                >
-                  <div className="flex items-center gap-3">
-                    <Users size={18} strokeWidth={2.5} />{" "}
-                    <span>Distributors</span>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/subdistributor-dashboard"
-                  className={linkClass("/subdistributor-dashboard")}
-                  onClick={onClose}
-                >
-                  <div className="flex items-center gap-3">
-                    <UserCircle size={18} strokeWidth={2.5} />{" "}
-                    <span>Sub-Partners</span>
-                  </div>
-                </Link>
-              </>
-            )}
-            {/* Role Based Links could go here if needed, but keeping it clean as requested */}
-
-            {/* Products: Read-only for retailers, full access for admin/distributor */}
+            {/* Inventory */}
             <Link
               to="/products"
               className={linkClass("/products")}
@@ -183,49 +124,87 @@ const Sidebar = ({ isOpen, onClose }) => {
             >
               <div className="flex items-center gap-3">
                 <Package size={18} strokeWidth={2.5} />
-                <span>{role === "retailer" ? "View Products" : "Inventory"}</span>
+                <span>Inventory</span>
               </div>
             </Link>
 
-            {/* Orders: Only admin and distributor */}
-            {(role === "admin" || role === "distributor") && (
+            {/* Retailer Orders (Incoming) for Distributors */}
+            {role === "distributor" && (
               <Link
-                to="/orders"
-                className={linkClass("/orders")}
+                to="/retailer-orders"
+                className={linkClass("/retailer-orders")}
                 onClick={onClose}
               >
-                <div className="flex items-center gap-3">
-                  <ShoppingCart size={18} strokeWidth={2.5} />{" "}
-                  <span>Orders</span>
+                <div className="flex items-center gap-3 text-indigo-400">
+                  <ClipboardList size={18} strokeWidth={2.5} />{" "}
+                  <span>Retailer Orders</span>
                 </div>
               </Link>
             )}
+
+            {/* Orders (General/Purchases) */}
+            <Link
+              to="/orders"
+              className={linkClass("/orders")}
+              onClick={onClose}
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingCart size={18} strokeWidth={2.5} />{" "}
+                <span>{role === "distributor" ? "My Purchases" : "Orders"}</span>
+              </div>
+            </Link>
           </div>
 
-          {/* Group 3: Config - Only for admin and distributor */}
+          {/* Group 3: Network / Configuration */}
           {(role === "admin" || role === "distributor") && (
             <div className="space-y-1 pb-10">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-3 px-2">
-                Configuration
+                {role === "admin" ? "Management" : "Network"}
               </p>
+
+              {role === "admin" && (
+                <Link
+                  to="/manage-distributors"
+                  className={linkClass("/manage-distributors")}
+                  onClick={onClose}
+                >
+                  <div className="flex items-center gap-3">
+                    <Users size={18} strokeWidth={2.5} /> <span>Distributors</span>
+                  </div>
+                </Link>
+              )}
+
               <Link
-                to="/reports"
-                className={linkClass("/reports")}
+                to="/manage-sub-distributors"
+                className={linkClass("/manage-sub-distributors")}
                 onClick={onClose}
               >
                 <div className="flex items-center gap-3">
-                  <BarChart3 size={18} strokeWidth={2.5} /> <span>Analytics</span>
+                  <UserCircle size={18} strokeWidth={2.5} /> <span>{role === "admin" ? "Sub-Partners" : "My Retailers"}</span>
                 </div>
               </Link>
-              <Link
-                to="/settings"
-                className={linkClass("/settings")}
-                onClick={onClose}
-              >
-                <div className="flex items-center gap-3">
-                  <Settings size={18} strokeWidth={2.5} /> <span>Settings</span>
-                </div>
-              </Link>
+
+              <div className="mt-4 pt-4 border-t border-slate-800/40">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-3 px-2">Configuration</p>
+                <Link
+                  to="/reports"
+                  className={linkClass("/reports")}
+                  onClick={onClose}
+                >
+                  <div className="flex items-center gap-3">
+                    <BarChart3 size={18} strokeWidth={2.5} /> <span>Reports</span>
+                  </div>
+                </Link>
+                <Link
+                  to="/settings"
+                  className={linkClass("/settings")}
+                  onClick={onClose}
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings size={18} strokeWidth={2.5} /> <span>Settings</span>
+                  </div>
+                </Link>
+              </div>
             </div>
           )}
         </nav>

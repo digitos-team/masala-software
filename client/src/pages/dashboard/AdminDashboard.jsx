@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import AdminStats from "./components/AdminStats";
 import RecentOrders from "./components/RecentOrders";
+import AdminPendingOrders from "./components/AdminPendingOrders";
 import AdminPendingActions from "./components/AdminPendingActions";
 import AdminSalesChart from "./components/AdminSalesChart";
 import { useNavigate } from "react-router-dom";
@@ -21,77 +22,64 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Fetch Data
+  const fetchData = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+      const [ordersData, distributorsData, subDistributorsData, todayCollection, monthCollection, historyRes, orderStatsRes, productStatsRes] = await Promise.all([
+        getAllOrders({ limit: 1000 }),
+        getDistributors(),
+        getSubDistributors(),
+        getPaymentStats({ startDate: today }),
+        getPaymentStats({ startDate: `${currentMonth}-01` }),
+        getPaymentHistory({ startDate: sixMonthsAgo.toISOString().split('T')[0], limit: 1000 }),
+        getOrderStats(),
+        getProductStats()
+      ]);
+
+      const paymentsArray = Array.isArray(historyRes?.data)
+        ? historyRes.data
+        : (historyRes?.data?.payments || []);
+
+      setOrders(ordersData?.data?.orders || ordersData?.data || []);
+      setDistributors(distributorsData?.data || []);
+      setSubDistributors(subDistributorsData?.data || []);
+      setPayments(paymentsArray);
+      setCollectionStats({
+        today: todayCollection?.data?.totalRevenue || 0,
+        month: monthCollection?.data?.totalRevenue || 0
+      });
+
+      setStatsData({
+        orders: orderStatsRes?.data,
+        products: productStatsRes?.data
+      });
+
+    } catch (error) {
+      console.error("Dashboard data fetch error:", error);
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-        const [ordersData, distributorsData, subDistributorsData, todayCollection, monthCollection, historyRes, orderStatsRes, productStatsRes] = await Promise.all([
-          getAllOrders({ limit: 1000 }),
-          getDistributors(),
-          getSubDistributors(),
-          getPaymentStats({ startDate: today }),
-          getPaymentStats({ startDate: `${currentMonth}-01` }),
-          getPaymentHistory({ startDate: sixMonthsAgo.toISOString().split('T')[0], limit: 1000 }),
-          getOrderStats(),
-          getProductStats()
-        ]);
-
-        const paymentsArray = Array.isArray(historyRes?.data)
-          ? historyRes.data
-          : (historyRes?.data?.payments || []);
-
-        console.log("Admin Dashboard Debug:", {
-          ordersCount: ordersData?.data?.orders?.length || ordersData?.data?.length,
-          distributorsCount: distributorsData?.data?.length,
-          subDistributorsCount: subDistributorsData?.data?.length,
-          todayRevenue: todayCollection?.data?.totalRevenue,
-          monthRevenue: monthCollection?.data?.totalRevenue,
-          paymentsCount: paymentsArray.length,
-          orderStats: orderStatsRes?.data,
-          productStats: productStatsRes?.data
-        });
-
-        setOrders(ordersData?.data?.orders || ordersData?.data || []);
-        setDistributors(distributorsData?.data || []);
-        setSubDistributors(subDistributorsData?.data || []);
-        setPayments(paymentsArray);
-        setCollectionStats({
-          today: todayCollection?.data?.totalRevenue || 0,
-          month: monthCollection?.data?.totalRevenue || 0
-        });
-
-        setStatsData({
-          orders: orderStatsRes?.data,
-          products: productStatsRes?.data
-        });
-
-      } catch (error) {
-        console.error("Dashboard data fetch error:", error);
-        toast.error("Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
   // Calculate Stats
   const stats = useMemo(() => {
-    // Calculate Today's Sales 
     const today = new Date().toISOString().split('T')[0];
     const todayOrders = orders.filter(o => o.createdAt?.startsWith(today) && o.status !== "cancelled");
     const todaySalesVal = todayOrders.reduce((acc, curr) => acc + (curr.pricing?.grandTotal || 0), 0);
 
-    // Monthly Sales
     const currentMonth = new Date().toISOString().slice(0, 7);
     const monthOrders = orders.filter(o => o.createdAt?.startsWith(currentMonth) && o.status !== "cancelled");
     const monthSalesVal = monthOrders.reduce((acc, curr) => acc + (curr.pricing?.grandTotal || 0), 0);
 
-    // Total Orders (excluding cancelled)
     const totalOrders = orders.filter(o => o.status !== "cancelled").length;
 
     return [
@@ -101,7 +89,7 @@ const AdminDashboard = () => {
       { title: "Active Distributors", value: distributors.length.toString(), isClickable: true },
       { title: "Active Sub-Distributors", value: subDistributors.length.toString(), isClickable: true },
     ];
-  }, [orders, distributors, subDistributors, collectionStats]);
+  }, [orders, distributors, subDistributors]);
 
   const handleCardClick = (title) => {
     if (title === "Active Distributors") {
@@ -119,6 +107,8 @@ const AdminDashboard = () => {
     );
   }
 
+  const pendingOrders = orders.filter(o => o.status === "placed");
+
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
       <AdminStats stats={stats} onCardClick={handleCardClick} />
@@ -126,6 +116,16 @@ const AdminDashboard = () => {
       <section className="bg-white rounded-2xl border p-6">
         <AdminSalesChart orders={orders} payments={payments} />
       </section>
+
+      {/* Pending Approvals Section - Moved from Distributor Side */}
+      {pendingOrders.length > 0 && (
+        <section className="min-h-[400px]">
+          <AdminPendingOrders
+            orders={pendingOrders}
+            onOrderUpdate={fetchData}
+          />
+        </section>
+      )}
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <AdminPendingActions

@@ -1,6 +1,8 @@
 import { AlertTriangle, Truck, PackageX } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const AdminPendingActions = ({ orderStats, productStats }) => {
+  const navigate = useNavigate();
 
   // Calculate counts from props
   const pendingOrdersCount = orderStats?.ordersByStatus?.find(s => s._id === "placed")?.count || 0;
@@ -13,10 +15,12 @@ const AdminPendingActions = ({ orderStats, productStats }) => {
       count: pendingOrdersCount,
       description: "Orders waiting for admin approval",
       icon: AlertTriangle,
+      path: "/orders",
       styles: {
         bg: "bg-amber-50",
         text: "text-amber-700",
         border: "border-amber-200",
+        hover: "hover:bg-amber-100",
       },
     },
     {
@@ -24,10 +28,12 @@ const AdminPendingActions = ({ orderStats, productStats }) => {
       count: readyForDispatchCount,
       description: "Approved orders not dispatched",
       icon: Truck,
+      path: "/orders",
       styles: {
         bg: "bg-blue-50",
         text: "text-blue-700",
         border: "border-blue-200",
+        hover: "hover:bg-blue-100",
       },
     },
     {
@@ -35,10 +41,12 @@ const AdminPendingActions = ({ orderStats, productStats }) => {
       count: lowStockCount,
       description: "Products running low on stock",
       icon: PackageX,
+      path: "/products",
       styles: {
         bg: "bg-rose-50",
         text: "text-rose-700",
         border: "border-rose-200",
+        hover: "hover:bg-rose-100",
       },
     },
   ];
@@ -62,7 +70,8 @@ const AdminPendingActions = ({ orderStats, productStats }) => {
           return (
             <div
               key={item.title}
-              className={`p-4 rounded-2xl border ${item.styles.bg} ${item.styles.border}`}
+              onClick={() => navigate(item.path)}
+              className={`p-4 rounded-2xl border ${item.styles.bg} ${item.styles.border} ${item.styles.hover} transition-all cursor-pointer active:scale-[0.98]`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">

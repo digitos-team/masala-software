@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Plus, Minus, Trash2, ShoppingCart, Package, ArrowRight, Truck } from "lucide-react";
-import { getProducts } from "../../api/admin/product.api";
+import { getProducts, getProductsByUser } from "../../api/admin/product.api";
 import { createOrder, updateOrder, getOrder } from "../../api/admin/order.api";
 import { useAuth } from "../../context/AuthContext";
+import { getDistributors } from "../../api/auth/auth.api";
 
 const CreateOrder = () => {
   const navigate = useNavigate();
@@ -27,17 +28,28 @@ const CreateOrder = () => {
     expectedDate: "",
   });
 
-  // Fetch Products (and Order if in edit mode)
+  // Distributor Selection State (for Retailers)
+  const [distributors, setDistributors] = useState([]);
+  const [selectedDistributor, setSelectedDistributor] = useState(null); // null = Admin
+
+  // Fetch Initial Data (Products and Order if editing)
   useEffect(() => {
     const init = async () => {
       setLoading(true);
       try {
-        // 1. Fetch Products
+        // 1. Fetch Distributors if Retailer
+        if (user?.role === "retailer") {
+          const distRes = await getDistributors();
+          setDistributors(distRes.data || []);
+        }
+
+        // 2. Fetch Initial Products
+        // Distributors and retailers see all products (to order from admin)
         const productRes = await getProducts();
         const fetchedProducts = productRes.data?.products || productRes.data || [];
         setProducts(fetchedProducts);
 
-        // 2. Fetch Order if Editing
+        // 3. Fetch Order if Editing
         if (isEditMode) {
           setOrderLoading(true);
           const orderRes = await getOrder(id);
@@ -84,26 +96,48 @@ const CreateOrder = () => {
     };
 
     init();
-  }, [id, isEditMode, navigate]);
+  }, [id, isEditMode, navigate, user?.role]);
+
+  // Refetch Products when Distributor changes (for Retailers)
+  useEffect(() => {
+    if (isEditMode) return; // Don't refetch products if editing an existing order
+    if (user?.role !== "retailer") return;
+
+    const fetchFilteredProducts = async () => {
+      setLoading(true);
+      try {
+        let productRes;
+        if (selectedDistributor) {
+          productRes = await getProductsByUser(selectedDistributor);
+        } else {
+          productRes = await getProducts();
+        }
+        const fetchedProducts = productRes.data?.products || productRes.data || [];
+        setProducts(fetchedProducts);
+        setCart([]); // Clear cart when supplier changes to avoid mixed or invalid products
+      } catch (error) {
+        console.error("Failed to fetch filtered products", error);
+        toast.error("Failed to load products for selected supplier");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFilteredProducts();
+  }, [selectedDistributor, user?.role, isEditMode]);
 
   // Helper: Get Price based on Role
   const getPrice = (product) => {
     if (!product.pricing) return 0;
 
-    let price = product.pricing.admin; // Default
-
     if (user?.role === "distributor") {
-      price = product.pricing.distributor || product.pricing.admin;
-    } else if (user?.role === "sub_distributor") {
-      price = product.pricing.sub_distributor || product.pricing.admin;
+      return Number(product.pricing.distributor?.price) || Number(product.pricing.admin?.mrp) || 0;
+    } else if (user?.role === "sub_distributor" || user?.role === "retailer") {
+      return Number(product.pricing.sub_distributor?.price) || Number(product.pricing.admin?.mrp) || 0;
     }
 
-    // Handle case where price is an object { price: 100 }
-    if (typeof price === 'object' && price !== null) {
-      return Number(price.price) || 0;
-    }
-
-    return Number(price) || 0;
+    // Default for Admin or unknown roles
+    return Number(product.pricing.admin?.mrp) || 0;
   };
 
   // Add Item to Cart
@@ -212,6 +246,8 @@ const CreateOrder = () => {
         deliveredAt: null,
         trackingNumber: ""
       },
+      distributorId: user?.role === "distributor" ? user._id : selectedDistributor,
+      subDistributorId: user?.role === "retailer" ? user._id : null,
       // status: "placed" // Don't reset status on edit? Or do? Backend handles it.
     };
 
@@ -323,6 +359,26 @@ const CreateOrder = () => {
 
           {/* CHECKOUT DETAILS */}
           <div className="p-6 bg-slate-50 border-t border-slate-100 space-y-4">
+            {/* Supplier Selection (Only for Retailers and Not in Edit Mode) */}
+            {user?.role === "retailer" && !isEditMode && (
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Order From</label>
+                <select
+                  value={selectedDistributor || ""}
+                  onChange={(e) => setSelectedDistributor(e.target.value || null)}
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="">Company (Admin)</option>
+                  {distributors.map((dist) => (
+                    <option key={dist._id} value={dist._id}>
+                      {dist.name} (Distributor)
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1 font-medium">Changing supplier will clear your current cart.</p>
+              </div>
+            )}
+
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Delivery Address</label>
               <textarea
