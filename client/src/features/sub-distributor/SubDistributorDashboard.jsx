@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import SubDistributorStats from "./components/SubDistributorStats";
 import MySalesChart from "./components/MySalesChart";
 import MyOrders from "./components/MyOrders";
-import ProfileCard from "./components/ProfileCard";
 
 const SubDistributorDashboard = () => {
   return (
@@ -34,18 +33,9 @@ const SubDistributorDashboard = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Side: Charts & Actions (8 Columns) */}
-          <div className="lg:col-span-8 space-y-8">
+          <div className="lg:col-span-12 space-y-8">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden transition-hover hover:shadow-md">
               <MySalesChart />
-            </div>
-          </div>
-
-          {/* Right Side: Profile & Quick Info (4 Columns) */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-8">
-              <ProfileCard />
-              {/* Tip: ProfileCard ke andar ki styling bhi clean rakhna for consistency */}
             </div>
           </div>
         </div>

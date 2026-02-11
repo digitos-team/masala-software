@@ -27,14 +27,6 @@ const SubDistributorStats = () => {
 
   const statsDisplay = [
     {
-      title: "Total Sales",
-      value: `₹${stats?.totalSales?.toLocaleString() || 0}`,
-      icon: <IndianRupee size={20} />,
-      color: "text-blue-600",
-      bg: "bg-blue-50",
-      trend: "All time",
-    },
-    {
       title: "Total Orders",
       value: stats?.totalOrders || 0,
       icon: <ShoppingBag size={20} />,
@@ -61,7 +53,7 @@ const SubDistributorStats = () => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       {statsDisplay.map((s) => (
         <div
           key={s.title}
